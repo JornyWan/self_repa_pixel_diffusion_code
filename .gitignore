@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pth
+*.pt
+*.ckpt
+output*/
+out_*/
+runs/
+events.out.tfevents.*
+*.log
+.DS_Store
