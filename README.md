@@ -70,8 +70,45 @@ torchrun --nproc_per_node=$NGPU --standalone jit_selfrepa_train.py \
     --data_path /path/to/imagenet_256 --output_dir /path/to/out --resume /path/to/out
 ```
 
+**JiT-H/16** (32 blocks; student→teacher block `10→20` — recommended, following the same rule; not yet run by us):
+
+```bash
+torchrun --nproc_per_node=$NGPU --standalone jit_selfrepa_train.py \
+    --model JiT-H/16 --img_size 256 --noise_scale 1.0 \
+    --self_student_block 10 --self_teacher_block 20 --self_lambda 0.1 \
+    --self_teacher_ema 0.9999 --self_teacher_dt 0.5 \
+    --batch_size 32 --accum_iter $((1024/(32*NGPU))) --blr 5e-5 --epochs 600 --warmup_epochs 5 \
+    --online_eval --eval_freq 40 --save_last_freq 5 \
+    --gen_bsz 64 --num_images 50000 --cfg 2.2 --interval_min 0.1 --interval_max 1.0 \
+    --data_path /path/to/imagenet_256 --output_dir /path/to/out --resume /path/to/out
+```
+
 A matched **baseline** (no alignment) is JiT's own `main_jit.py` with the same training args.
 `--online_eval` logs FID/IS every `eval_freq` epochs to TensorBoard (tag `fid_cfg3.0_res256`).
+
+### Self-REPA block indices by model size
+
+The alignment reads an **early** online block (student, at the block where the in-context class tokens
+have just entered, `≈⅓` depth) and a **deeper** EMA-teacher block (`≈⅔` depth). `λ`, `Δ`, the EMA decay,
+and the effective batch do **not** change with model size — only `--model` and the two block indices do.
+
+| model | depth | `--self_student_block` → `--self_teacher_block` | eval CFG\* |
+|---|---|---|---|
+| JiT-B/16 | 12 | **4 → 8**  (validated) | 3.0 |
+| JiT-L/16 | 24 | **8 → 16** (validated) | 2.6 |
+| JiT-H/16 | 32 | **10 → 20** (recommended) | 2.2 |
+
+\* Evaluate each size at its optimal guidance; these are starting points (JiT's per-size CFG) — confirm
+with a small CFG sweep at convergence. We have **run and reported B/16 and L/16**; the H/16 indices follow
+the same `⅓→⅔`-depth rule (exact teacher index ≈20–21 is not critical) and are **untested**.
+
+### Patch-32 variants / higher resolution
+
+`JiT-{B,L,H}/32` are the **patch-size-32** variants — identical depth/width to their `/16` siblings, only
+`patch_size` differs — intended for **512×512** training (`--img_size 512 --noise_scale 2.0`), where the
+larger patch keeps the sequence length manageable (`512/32 = 16 → 256` tokens, same as `256/16`). Self-REPA
+transfers unchanged: a `/32` model uses the **same student→teacher block indices as its `/16` sibling**
+(B `4→8`, L `8→16`, H `10→20`), since depth is identical. We have not run the `/32` / 512-px setting.
 
 ## Evaluation (FID/IS, 50k)
 
