@@ -22,6 +22,10 @@ The base JiT files (`main_jit.py`, `model_jit.py`, `denoiser.py`, `engine_jit.py
 | `jit_selfrepa_train.py` | training / evaluation entry point (adds `--self_*` flags) |
 | `smoke_selfrepa.py` / `.sh` | standalone smoke test (no DDP / no data) |
 
+> **Running the full scaling study?** See **[`EXPERIMENT_PLAN.md`](EXPERIMENT_PLAN.md)** — a step-by-step,
+> no-code-change plan to train a matched JiT-baseline + Self-REPA pair at every size (L/16, H/16, B/L/H-32),
+> with per-size flags, a results table, and resume-safe commands.
+
 ## Setup
 
 ```bash
